@@ -1,12 +1,29 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.BasicAndroid" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Customize your light theme here. -->
+
+    <!-- Base theme -->
+    <style name="Base.Theme.BasicAndroid" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorAccent">@color/colorAccent</item>
         <item name="backgroundColor">@color/backgroundColor</item>
         <item name="android:textColor">@color/textColor</item>
     </style>
 
-    <style name="Theme.BasicAndroid" parent="Base.Theme.BasicAndroid" />
+    <!-- Main theme -->
+    <style name="Theme.BasicAndroid" parent="Base.Theme.BasicAndroid">
+        <!-- DO NOT put any splash attributes here -->
+    </style>
+
+    <!-- Splash screen theme (used only by SplashActivity) -->
+    <style name="Theme.NetraMitra.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- These apply ONLY while splash activity is shown -->
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+
+        <!-- These suppress system splash icon on Android 12+ -->
+        <item name="windowSplashScreenBackground" tools:targetApi="31">@android:color/black</item>
+        <item name="windowSplashScreenAnimatedIcon" tools:targetApi="31">@null</item>
+        <item name="windowSplashScreenIconBackgroundColor" tools:targetApi="31">@android:color/black</item>
+        <item name="postSplashScreenTheme" tools:targetApi="31">@style/Theme.BasicAndroid</item>
+    </style>
+
 </resources>

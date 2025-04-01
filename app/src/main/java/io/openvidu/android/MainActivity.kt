@@ -13,6 +13,8 @@ class MainActivity : AppCompatActivity() {
         checkUrls()
 
         super.onCreate(savedInstanceState)
+        supportActionBar?.hide()
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -34,7 +36,8 @@ class MainActivity : AppCompatActivity() {
         binding.joinButton.isEnabled = false
 
         val participantName = binding.participantName.text.toString()
-        val roomName = binding.roomName.text.toString()
+//        val roomName = binding.roomName.text.toString()
+        val roomName = "DemoRoom"
 
         if (participantName.isNotEmpty() && roomName.isNotEmpty()) {
             val intent = Intent(this, RoomLayoutActivity::class.java)
