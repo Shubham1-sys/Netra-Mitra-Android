@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -16,22 +17,30 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.utils.EmptyContent.headers
+import io.ktor.client.request.headers
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.livekit.android.LiveKit
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
+import io.livekit.android.room.track.AudioTrack
 import io.livekit.android.room.track.VideoTrack
+import io.livekit.android.room.track.LocalVideoTrack
+import io.livekit.android.room.track.LocalVideoTrackOptions
+import io.livekit.android.room.track.CameraPosition
+import io.livekit.android.room.track.Track
 import io.livekit.android.util.flow
 import io.openvidu.android.databinding.ActivityRoomLayoutBinding
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import io.ktor.client.request.headers  // <-- Add this
-import io.ktor.http.HttpHeaders
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+//import io.livekit.android.room.track.publication.AudioTrackPublication
+
+
+// TrackInfo model
 
 data class TrackInfo(
     val track: VideoTrack,
@@ -56,6 +65,7 @@ class RoomLayoutActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRoomLayoutBinding.inflate(layoutInflater)
+        supportActionBar?.hide()
         setContentView(binding.root)
 
         binding.loader.visibility = View.VISIBLE
@@ -67,8 +77,6 @@ class RoomLayoutActivity : AppCompatActivity() {
         room = LiveKit.create(applicationContext)
 
         initRecyclerView()
-
-        // Check for audio and camera permissions before connecting to the room
         requestNeededPermissions { connectToRoom() }
     }
 
@@ -79,7 +87,6 @@ class RoomLayoutActivity : AppCompatActivity() {
     }
 
     private fun connectToRoom() {
-        // Get the room name and participant name from the intent
         val participantName = intent.getStringExtra("participantName") ?: "Participant1"
         val roomName = intent.getStringExtra("roomName") ?: "Test Room"
 
@@ -100,17 +107,16 @@ class RoomLayoutActivity : AppCompatActivity() {
             }
 
             try {
-                // Get token from your application server with the room name and participant name
-                println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
                 val token = getToken(roomName, participantName)
-                println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!, $token")
-
-                // Connect to the room with the LiveKit URL and the token
                 room.connect(Urls.livekitUrl, token)
 
                 // Publish your camera and microphone
                 val localParticipant = room.localParticipant
                 localParticipant.setMicrophoneEnabled(true)
+                val audioManager = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                audioManager.isSpeakerphoneOn = true
+
                 localParticipant.setCameraEnabled(true)
 
                 // Add local video track to the participantTracks list
@@ -141,8 +147,6 @@ class RoomLayoutActivity : AppCompatActivity() {
 
     private fun onTrackSubscribed(event: RoomEvent.TrackSubscribed) {
         val track = event.track
-
-        // If the track is a video track, add it to the participantTracks list
         if (track is VideoTrack) {
             participantTracks.add(TrackInfo(track, event.participant.identity!!.value))
             participantAdapter.notifyItemInserted(participantTracks.size - 1)
@@ -164,12 +168,11 @@ class RoomLayoutActivity : AppCompatActivity() {
     }
 
     private fun leaveRoom() {
-        // Leave the room by calling 'disconnect' method over the Room object
+        val audioManager = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+        audioManager.mode = android.media.AudioManager.MODE_NORMAL
+        audioManager.isSpeakerphoneOn = false
         room.disconnect()
-
         client.close()
-
-        // Go back to the previous activity.
         finish()
     }
 
@@ -182,17 +185,12 @@ class RoomLayoutActivity : AppCompatActivity() {
         val requestPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
                 var hasDenied = false
-
-                // Check if any permissions weren't granted
                 for (grant in grants.entries) {
                     if (!grant.value) {
-                        Toast.makeText(this, "Missing permission: ${grant.key}", Toast.LENGTH_SHORT)
-                            .show()
-
+                        Toast.makeText(this, "Missing permission: ${grant.key}", Toast.LENGTH_SHORT).show()
                         hasDenied = true
                     }
                 }
-
                 if (!hasDenied) {
                     onHasPermissions()
                 }
@@ -213,19 +211,6 @@ class RoomLayoutActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * --------------------------------------------
-     * GETTING A TOKEN FROM YOUR APPLICATION SERVER
-     * --------------------------------------------
-     * The method below request the creation of a token to
-     * your application server. This prevents the need to expose
-     * your LiveKit API key and secret to the client side.
-     *
-     * In this sample code, there is no user control at all. Anybody could
-     * access your application server endpoints. In a real production
-     * environment, your application server must identify the user to allow
-     * access to the endpoints.
-     */
     private suspend fun getToken(roomName: String, participantName: String): String {
         val response = client.post(Urls.applicationServerUrl) {
             contentType(ContentType.Application.Json)
@@ -234,7 +219,6 @@ class RoomLayoutActivity : AppCompatActivity() {
                 append("X-Sandbox-ID", "agile-virtualmachine-d6o8j3")
             }
         }
-        println(response.body<TokenResponse>().token)
         return response.body<TokenResponse>().token
     }
 }
@@ -244,7 +228,7 @@ data class TokenRequest(val participantName: String, val roomName: String)
 
 @Serializable
 data class TokenResponse(
-    @SerialName("participantToken") val token: String,  // Map JSON's "participantToken" to "token"
+    @SerialName("participantToken") val token: String,
     @SerialName("serverUrl") val serverUrl: String,
     @SerialName("roomName") val roomName: String,
     @SerialName("participantName") val participantName: String

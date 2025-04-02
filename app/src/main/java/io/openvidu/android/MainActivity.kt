@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.participantName.setText("Participant%d".format((1..99).random()))
+        binding.participantName.setText("Shubham")
 
         binding.joinButton.setOnClickListener {
             navigateToRoomLayoutActivity()
