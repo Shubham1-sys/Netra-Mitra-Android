@@ -151,6 +151,10 @@ class RoomLayoutActivity : AppCompatActivity() {
             participantTracks.add(TrackInfo(track, event.participant.identity!!.value))
             participantAdapter.notifyItemInserted(participantTracks.size - 1)
         }
+        if (track is AudioTrack) {
+            binding.waveView.visibility = View.VISIBLE
+            binding.waveView.playAnimation()
+        }
     }
 
     private fun onTrackUnsubscribed(event: RoomEvent.TrackUnsubscribed) {
@@ -164,6 +168,10 @@ class RoomLayoutActivity : AppCompatActivity() {
                 participantTracks.removeAt(index)
                 participantAdapter.notifyItemRemoved(index)
             }
+        }
+        if (track is AudioTrack) {
+            binding.waveView.cancelAnimation()
+            binding.waveView.visibility = View.GONE
         }
     }
 
